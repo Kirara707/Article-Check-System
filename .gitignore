@@ -1,0 +1,60 @@
+# .gitignore for Paper Review File System
+
+# 编译输出
+/bin/
+/obj/
+*.o
+*.a
+*.so
+*.dylib
+
+# 磁盘映像
+*.img
+disk.img
+
+# 编辑器和IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志文件
+*.log
+logs/
+
+# 测试输出
+/tests/test_vfs
+/tests/test_disk.img
+/tests/*.out
+
+# 调试文件
+core
+core.*
+*.dSYM/
+vgcore.*
+
+# 临时文件
+*.tmp
+*.bak
+*.orig
+
+# 文档生成
+/docs/html/
+/docs/latex/
+
+# 依赖目录
+/deps/
+/third_party/
+
+# 配置文件(可能包含敏感信息)
+config.local.h
+*.local
+
+# 性能分析
+*.gcda
+*.gcno
+*.gcov
+perf.data
+perf.data.old
