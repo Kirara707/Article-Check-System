@@ -111,6 +111,8 @@ int server_handle_upload(ServerContext *ctx, ClientSession *session,
                          RequestHeader *header);
 int server_handle_download(ServerContext *ctx, ClientSession *session,
                            RequestHeader *header);
+int server_handle_rmdir(ServerContext *ctx, ClientSession *session,
+                        RequestHeader *header);
 int server_handle_mkdir(ServerContext *ctx, ClientSession *session,
                         RequestHeader *header);
 int server_handle_delete(ServerContext *ctx, ClientSession *session,
@@ -123,6 +125,36 @@ int server_handle_review_paper(ServerContext *ctx, ClientSession *session,
                                RequestHeader *header, PaperStatusPayload *payload);
 int server_handle_query_status(ServerContext *ctx, ClientSession *session,
                                RequestHeader *header);
+
+// 评审意见命令 (新增)
+int server_handle_upload_review(ServerContext *ctx, ClientSession *session,
+                                RequestHeader *header, ReviewPayload *payload);
+int server_handle_query_review(ServerContext *ctx, ClientSession *session,
+                               RequestHeader *header);
+int server_handle_assign_reviewer(ServerContext *ctx, ClientSession *session,
+                                  RequestHeader *header, AssignReviewerPayload *payload);
+int server_handle_make_decision(ServerContext *ctx, ClientSession *session,
+                                RequestHeader *header);
+
+// 备份命令 (新增)
+int server_handle_backup_create(ServerContext *ctx, ClientSession *session,
+                                RequestHeader *header);
+int server_handle_backup_list(ServerContext *ctx, ClientSession *session,
+                              RequestHeader *header);
+int server_handle_backup_restore(ServerContext *ctx, ClientSession *session,
+                                 RequestHeader *header);
+
+// 用户管理命令 (新增)
+int server_handle_user_add(ServerContext *ctx, ClientSession *session,
+                           RequestHeader *header, UserInfoPayload *payload);
+int server_handle_user_delete(ServerContext *ctx, ClientSession *session,
+                              RequestHeader *header);
+int server_handle_user_list(ServerContext *ctx, ClientSession *session,
+                            RequestHeader *header);
+
+// 系统状态命令 (新增)
+int server_handle_system_status(ServerContext *ctx, ClientSession *session,
+                                RequestHeader *header);
 
 /*============================================================================
  * 线程池函数声明

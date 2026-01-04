@@ -184,4 +184,82 @@ const char* vfs_strerror(int err);
 void vfs_print_superblock(SuperBlock *sb);
 void vfs_print_inode(Inode *inode);
 
+/*============================================================================
+ * 备份相关函数 (新增)
+ *============================================================================*/
+
+// 备份元数据结构
+typedef struct {
+    uint32_t backup_id;                 // 备份ID
+    time_t created_at;                  // 创建时间
+    char description[256];              // 描述
+    uint32_t size;                      // 备份大小(字节)
+    char filename[MAX_FILENAME];        // 备份文件名
+} BackupMeta;
+
+#define MAX_BACKUPS 100                 // 最大备份数
+
+// 创建备份 - 将整个磁盘镜像复制到备份目录
+int vfs_backup_create(VFSContext *ctx, const char *description, uint32_t *backup_id);
+
+// 列出备份
+int vfs_backup_list(VFSContext *ctx, BackupMeta *backups, int *count);
+
+// 恢复备份
+int vfs_backup_restore(VFSContext *ctx, uint32_t backup_id);
+
+// 删除备份
+int vfs_backup_delete(VFSContext *ctx, uint32_t backup_id);
+
+/*============================================================================
+ * 用户管理相关函数 (新增)
+ *============================================================================*/
+
+// 用户信息结构
+typedef struct {
+    char username[64];
+    char password[64];                  // 存储哈希
+    UserRole role;
+    char email[128];
+    time_t created_at;
+    bool active;
+} UserInfo;
+
+#define MAX_USERS 256                   // 最大用户数
+
+// 用户管理
+int vfs_user_add(VFSContext *ctx, const char *username, const char *password, UserRole role);
+int vfs_user_delete(VFSContext *ctx, const char *username);
+int vfs_user_list(VFSContext *ctx, UserInfo *users, int *count);
+int vfs_user_verify(VFSContext *ctx, const char *username, const char *password, UserRole *role);
+int vfs_user_exists(VFSContext *ctx, const char *username);
+
+/*============================================================================
+ * 评审相关函数 (新增)
+ *============================================================================*/
+
+// 评审信息结构
+typedef struct {
+    uint32_t review_id;
+    uint32_t paper_id;
+    char reviewer[64];
+    int32_t score;                      // 1-10
+    char decision[32];                  // accept/reject/revision
+    char comments[2048];
+    time_t review_time;
+} ReviewInfo;
+
+// 保存评审意见
+int vfs_review_save(VFSContext *ctx, uint32_t paper_id, const ReviewInfo *review);
+
+// 获取论文的所有评审意见
+int vfs_review_list(VFSContext *ctx, uint32_t paper_id, ReviewInfo *reviews, int *count);
+
+// 分配审稿人
+int vfs_assign_reviewer(VFSContext *ctx, uint32_t paper_id, const char *reviewer);
+
+// 获取系统统计信息
+void vfs_get_stats(VFSContext *ctx, uint32_t *total_blocks, uint32_t *free_blocks,
+                   uint32_t *total_inodes, uint32_t *free_inodes);
+
 #endif // VFS_H

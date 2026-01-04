@@ -67,4 +67,29 @@ int client_parse_command(ClientContext *ctx, const char *cmdline);
 void client_print_help(void);
 void client_print_status(ClientContext *ctx);
 
-#endif // CLIENT_H
+
+/*============================================================================
+ * 新增命令函数声明
+ *============================================================================*/
+
+// 备份管理 (管理员)
+int client_backup_create(ClientContext *ctx, const char *description);
+int client_backup_list(ClientContext *ctx);
+int client_backup_restore(ClientContext *ctx, uint32_t backup_id);
+
+// 用户管理 (管理员)
+int client_user_add(ClientContext *ctx, const char *username, const char *password, int role);
+int client_user_delete(ClientContext *ctx, const char *username);
+int client_user_list(ClientContext *ctx);
+
+// 评审管理 (审稿人/编辑)
+int client_upload_review(ClientContext *ctx, uint32_t paper_id, int score, 
+                         const char *decision, const char *comments);
+int client_query_review(ClientContext *ctx, uint32_t paper_id);
+int client_assign_reviewer(ClientContext *ctx, uint32_t paper_id, const char *reviewer);
+int client_make_decision(ClientContext *ctx, uint32_t paper_id, const char *decision);
+
+// 系统状态
+int client_system_status(ClientContext *ctx);
+
+#endif /* CLIENT_H */

@@ -102,27 +102,212 @@ make clean
 ### 客户端命令
 
 ```
+=== 连接管理 ===
 connect <host> <port>     - 连接服务器
 disconnect                - 断开连接
-login <user> <role>       - 登录 (role: 0=访客, 1=作者, 2=评审, 3=管理员)
+login <user> <role>       - 登录 (role: 0=访客, 1=作者, 2=评审, 3=编辑, 4=管理员)
 logout                    - 登出
+status                    - 显示连接状态
 
+=== 文件操作 ===
 ls [path]                 - 列出目录
 cd <path>                 - 切换目录
 pwd                       - 显示当前目录
-mkdir <path>              - 创建目录
-rmdir <path>              - 删除目录
-
+mkdir <path>              - 创建目录 (仅管理员)
+rmdir <path>              - 删除目录 (仅管理员)
 upload <local> <remote>   - 上传文件
 download <remote> <local> - 下载文件
 delete <path>             - 删除文件
 stat <path>               - 显示文件信息
 
+=== 论文提交 ===
 submit <file> <title> <author> - 提交论文
-status                    - 显示连接状态
+
+=== 评审管理 (评审/编辑) ===
+review <paper_id> <score> <decision> <comments> - 上传评审意见
+getreview <paper_id>      - 查询论文的评审意见
+assign <paper_id> <reviewer> - 分配审稿人 (编辑权限)
+decide <paper_id> <accept|reject|revision> - 做出决定 (编辑权限)
+
+=== 备份管理 (管理员) ===
+backup create [desc]      - 创建备份
+backup list               - 列出所有备份
+backup restore <id>       - 恢复指定备份
+
+=== 用户管理 (管理员) ===
+useradd <username> <password> <role> - 添加用户
+userdel <username>        - 删除用户
+userlist                  - 列出所有用户
+
+=== 系统信息 ===
+sysinfo                   - 显示系统状态
+
+=== 通用 ===
 help                      - 显示帮助
 quit                      - 退出
 ```
+
+### 命令使用示例
+
+#### 连接和登录
+```bash
+# 连接到本地服务器
+connect localhost 8080
+
+# 以管理员身份登录 (role=3)
+login admin 4
+
+# 以作者身份登录 (role=1)
+login zhangsan 1
+
+# 以评审身份登录 (role=2)
+login reviewer1 2
+```
+
+#### 目录操作 (需要管理员权限)
+```bash
+# 使用绝对路径创建目录
+mkdir /papers
+mkdir /papers/2024
+
+# 使用相对路径创建目录 (基于当前目录)
+cd /papers
+mkdir submissions      # 实际创建 /papers/submissions
+
+# 列出目录内容
+ls                     # 列出当前目录
+ls /                   # 列出根目录
+ls /papers             # 列出指定目录
+
+# 切换目录
+cd /papers             # 切换到绝对路径
+cd submissions         # 切换到子目录
+cd ..                  # 返回上级目录
+
+# 显示当前目录
+pwd
+
+# 删除空目录 (目录必须为空)
+rmdir /papers/submissions
+```
+
+#### 文件操作
+```bash
+# 上传文件 (本地路径 -> 远程路径)
+upload ./paper.pdf /papers/paper.pdf
+upload ./draft.txt /papers/2024/draft.txt
+
+# 下载文件 (远程路径 -> 本地路径)
+download /papers/paper.pdf ./downloaded.pdf
+
+# 删除文件
+delete /papers/old_paper.pdf
+
+# 查看文件信息
+stat /papers/paper.pdf
+```
+
+#### 论文提交 (作者权限)
+```bash
+# 以作者身份登录
+login author1 1
+
+# 提交论文
+submit ./my_paper.pdf "Deep Learning Research" "Zhang San"
+```
+
+#### 备份管理 (管理员权限)
+```bash
+# 以管理员身份登录
+login admin 4
+
+# 创建备份并添加描述
+backup create "Before major update"
+
+# 列出所有备份
+backup list
+# 输出示例:
+# === Backup List (2 backups) ===
+# ID: 1767514511
+#   Created: 2026-01-04 16:15:11
+#   Description: Before major update
+#   File: backup_1767514511.img
+
+# 恢复指定备份
+backup restore 1767514511
+```
+
+#### 用户管理 (管理员权限)
+```bash
+# 添加新用户
+useradd zhangsan password123 1   # 添加作者
+useradd reviewer1 pass456 2      # 添加评审员
+useradd editor1 pass789 3        # 添加编辑
+
+# 列出所有用户
+userlist
+# 输出示例:
+# === User List (3 users) ===
+# 1. zhangsan
+#    Role: Author
+#    Created: 2026-01-04 16:20
+#    Status: Active
+
+# 删除用户
+userdel zhangsan
+```
+
+#### 评审管理 (评审/编辑权限)
+```bash
+# 以评审身份登录
+login reviewer1 2
+
+# 上传评审意见 (paper_id, score, decision)
+review 12345 8 accept "Great paper with solid methodology"
+
+# 查询评审意见
+getreview 12345
+
+# 以编辑身份登录
+login editor1 3
+
+# 分配审稿人
+assign 12345 reviewer1
+
+# 做出最终决定
+decide 12345 accept
+decide 12346 reject
+decide 12347 revision
+```
+
+#### 系统状态查看
+```bash
+# 查看系统状态
+sysinfo
+# 输出示例:
+# ╔══════════════════════════════════════════════════════╗
+# ║              System Status Report                     ║
+# ╠══════════════════════════════════════════════════════╣
+# ║ Uptime: 0 days, 02:15:30
+# ║ Storage: Used 36/16384 blocks (0.2%)
+# ║ Inodes: Free 1023/1024
+# ║ Active Clients: 2 / 512
+# ╚══════════════════════════════════════════════════════╝
+```
+
+#### 常见错误及解决方法
+
+| 错误信息 | 原因 | 解决方法 |
+|----------|------|----------|
+| Permission denied: only admin can create directories | 非管理员尝试创建目录 | 使用 `login admin 4` 以管理员身份登录 |
+| Permission denied: only admin can create backups | 非管理员尝试备份 | 使用 `login admin 4` 以管理员身份登录 |
+| Permission denied: only reviewers can upload reviews | 非评审员尝试上传评审 | 使用评审员角色登录 (role=2) |
+| Permission denied: only editors can assign reviewers | 非编辑尝试分配审稿人 | 使用编辑角色登录 (role=3) |
+| Invalid path | 路径格式错误 | 使用绝对路径如 `/papers` 而不是 `papers` |
+| Directory not empty | 尝试删除非空目录 | 先删除目录内的文件 |
+| File not found | 文件或目录不存在 | 使用 `ls` 确认路径正确 |
+| User already exists | 尝试添加已存在的用户 | 选择不同的用户名 |
+| Backup not found | 备份ID不存在 | 使用 `backup list` 查看可用备份 |
 
 ## 项目结构
 
@@ -245,6 +430,14 @@ make valgrind
                   │  Resubmit    │
                   └──────────────┘
 ```
+
+## 新增功能 (v2.0)
+
+- [x] **编辑角色**: 新增 ROLE_EDITOR (3)，可分配审稿人和做出最终决定
+- [x] **备份系统**: 支持创建、列出、恢复完整文件系统备份
+- [x] **用户管理**: 管理员可添加、删除、列出系统用户
+- [x] **评审管理**: 评审员可上传评审意见，编辑可分配审稿人
+- [x] **系统状态**: 实时查看存储使用、运行时间、连接数等信息
 
 ## 未来改进
 

@@ -78,9 +78,28 @@ typedef enum {
     
     // 论文评审相关命令
     CMD_SUBMIT_PAPER    = 20,   // 提交论文
-    CMD_REVIEW_PAPER    = 21,   // 评审论文
+    CMD_REVIEW_PAPER    = 21,   // 评审论文  
     CMD_QUERY_STATUS    = 22,   // 查询状态
     CMD_UPDATE_STATUS   = 23,   // 更新状态
+    
+    // 评审意见相关命令 (新增)
+    CMD_UPLOAD_REVIEW   = 30,   // 上传评审意见
+    CMD_QUERY_REVIEW    = 31,   // 查询评审意见
+    CMD_ASSIGN_REVIEWER = 32,   // 分配审稿人 (编辑权限)
+    CMD_MAKE_DECISION   = 33,   // 做出决定 (编辑权限)
+    
+    // 备份相关命令 (新增)
+    CMD_BACKUP_CREATE   = 40,   // 创建备份
+    CMD_BACKUP_LIST     = 41,   // 列出备份
+    CMD_BACKUP_RESTORE  = 42,   // 恢复备份
+    
+    // 用户管理命令 (新增)
+    CMD_USER_ADD        = 50,   // 添加用户
+    CMD_USER_DELETE     = 51,   // 删除用户
+    CMD_USER_LIST       = 52,   // 列出用户
+    
+    // 系统状态命令 (新增)
+    CMD_SYSTEM_STATUS   = 60,   // 系统状态
 } CommandType;
 
 /*============================================================================
@@ -113,7 +132,8 @@ typedef enum {
     ROLE_GUEST      = 0,    // 访客
     ROLE_AUTHOR     = 1,    // 作者
     ROLE_REVIEWER   = 2,    // 评审者
-    ROLE_ADMIN      = 3,    // 管理员
+    ROLE_EDITOR     = 3,    // 编辑 (新增)
+    ROLE_ADMIN      = 4,    // 管理员
 } UserRole;
 
 /*============================================================================

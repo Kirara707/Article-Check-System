@@ -651,21 +651,40 @@ int client_query_paper(ClientContext *ctx, uint32_t paper_id) {
 void client_print_help(void) {
     printf("\n");
     printf("Available commands:\n");
+    printf("\n--- Connection ---\n");
     printf("  connect <host> <port>     - Connect to server\n");
     printf("  disconnect                - Disconnect from server\n");
-    printf("  login <username> <role>   - Login (role: 0=guest, 1=author, 2=reviewer, 3=admin)\n");
+    printf("  login <username> <role>   - Login (role: 0=guest, 1=author, 2=reviewer, 3=editor, 4=admin)\n");
     printf("  logout                    - Logout\n");
+    printf("  status                    - Show connection status\n");
+    printf("\n--- File Operations ---\n");
     printf("  ls [path]                 - List directory contents\n");
     printf("  cd <path>                 - Change directory\n");
     printf("  pwd                       - Print working directory\n");
-    printf("  mkdir <path>              - Create directory\n");
-    printf("  rmdir <path>              - Remove directory\n");
+    printf("  mkdir <path>              - Create directory (admin only)\n");
+    printf("  rmdir <path>              - Remove directory (admin only)\n");
     printf("  upload <local> <remote>   - Upload file\n");
     printf("  download <remote> <local> - Download file\n");
     printf("  delete <path>             - Delete file\n");
     printf("  stat <path>               - Show file info\n");
+    printf("\n--- Paper Submission ---\n");
     printf("  submit <file> <title> <author> - Submit paper\n");
-    printf("  status                    - Show connection status\n");
+    printf("\n--- Review Management (Reviewer/Editor) ---\n");
+    printf("  review <paper_id> <score> <decision> <comments> - Upload review\n");
+    printf("  getreview <paper_id>      - Query reviews for paper\n");
+    printf("  assign <paper_id> <reviewer> - Assign reviewer (editor)\n");
+    printf("  decide <paper_id> <accept|reject|revision> - Make decision (editor)\n");
+    printf("\n--- Backup Management (Admin) ---\n");
+    printf("  backup create [desc]      - Create backup\n");
+    printf("  backup list               - List all backups\n");
+    printf("  backup restore <id>       - Restore backup\n");
+    printf("\n--- User Management (Admin) ---\n");
+    printf("  useradd <username> <password> <role> - Add user\n");
+    printf("  userdel <username>        - Delete user\n");
+    printf("  userlist                  - List all users\n");
+    printf("\n--- System (Admin) ---\n");
+    printf("  sysinfo                   - Show system status\n");
+    printf("\n--- General ---\n");
     printf("  help                      - Show this help\n");
     printf("  quit                      - Exit\n");
     printf("\n");
@@ -718,10 +737,22 @@ int client_parse_command(ClientContext *ctx, const char *cmdline) {
     }
     else if (strcmp(cmd, "login") == 0) {
         if (argc < 3) {
-            printf("Usage: login <username> <role>\n");
+            printf("Usage: login <username> <password> [role]\n");
+            printf("  For admin bootstrap: login admin 4\n");
             return 0;
         }
-        return client_login(ctx, arg1, "", atoi(arg2));
+        // 支持两种格式：
+        // login admin 4          (admin bootstrap，无密码)
+        // login user password 1  (普通用户，有密码)
+        if (argc == 3 && atoi(arg2) >= 0 && atoi(arg2) <= 4) {
+            // 旧格式兼容: login <username> <role>
+            return client_login(ctx, arg1, "", atoi(arg2));
+        } else if (argc >= 4) {
+            // 新格式: login <username> <password> <role>
+            return client_login(ctx, arg1, arg2, atoi(arg3));
+        } else {
+            return client_login(ctx, arg1, arg2, ROLE_GUEST);
+        }
     }
     else if (strcmp(cmd, "logout") == 0) {
         return client_logout(ctx);
@@ -799,6 +830,76 @@ int client_parse_command(ClientContext *ctx, const char *cmdline) {
     else if (strcmp(cmd, "quit") == 0 || strcmp(cmd, "exit") == 0) {
         return -1;  // 退出信号
     }
+    // ===== 新增命令 =====
+    else if (strcmp(cmd, "backup") == 0) {
+        if (argc < 2) {
+            printf("Usage: backup <create|list|restore> [args]\n");
+            return 0;
+        }
+        if (strcmp(arg1, "create") == 0) {
+            return client_backup_create(ctx, argc >= 3 ? arg2 : NULL);
+        } else if (strcmp(arg1, "list") == 0) {
+            return client_backup_list(ctx);
+        } else if (strcmp(arg1, "restore") == 0) {
+            if (argc < 3) {
+                printf("Usage: backup restore <backup_id>\n");
+                return 0;
+            }
+            return client_backup_restore(ctx, atoi(arg2));
+        } else {
+            printf("Unknown backup command: %s\n", arg1);
+            return 0;
+        }
+    }
+    else if (strcmp(cmd, "useradd") == 0) {
+        if (argc < 4) {
+            printf("Usage: useradd <username> <password> <role>\n");
+            return 0;
+        }
+        return client_user_add(ctx, arg1, arg2, atoi(arg3));
+    }
+    else if (strcmp(cmd, "userdel") == 0) {
+        if (argc < 2) {
+            printf("Usage: userdel <username>\n");
+            return 0;
+        }
+        return client_user_delete(ctx, arg1);
+    }
+    else if (strcmp(cmd, "userlist") == 0) {
+        return client_user_list(ctx);
+    }
+    else if (strcmp(cmd, "review") == 0) {
+        if (argc < 4) {
+            printf("Usage: review <paper_id> <score> <decision> \n");
+            printf("       decision: accept, reject, or revision\n");
+            return 0;
+        }
+        return client_upload_review(ctx, atoi(arg1), atoi(arg2), arg3, "");
+    }
+    else if (strcmp(cmd, "getreview") == 0) {
+        if (argc < 2) {
+            printf("Usage: getreview <paper_id>\n");
+            return 0;
+        }
+        return client_query_review(ctx, atoi(arg1));
+    }
+    else if (strcmp(cmd, "assign") == 0) {
+        if (argc < 3) {
+            printf("Usage: assign <paper_id> <reviewer_username>\n");
+            return 0;
+        }
+        return client_assign_reviewer(ctx, atoi(arg1), arg2);
+    }
+    else if (strcmp(cmd, "decide") == 0) {
+        if (argc < 3) {
+            printf("Usage: decide <paper_id> <accept|reject|revision>\n");
+            return 0;
+        }
+        return client_make_decision(ctx, atoi(arg1), arg2);
+    }
+    else if (strcmp(cmd, "sysinfo") == 0) {
+        return client_system_status(ctx);
+    }
     else {
         printf("Unknown command: %s\n", cmd);
         printf("Type 'help' for available commands.\n");
@@ -834,6 +935,384 @@ int client_interactive(ClientContext *ctx) {
         if (client_parse_command(ctx, line) < 0) {
             break;
         }
+    }
+    
+    return 0;
+}
+
+/*============================================================================
+ * 新增命令实现 - 备份、用户管理、评审、系统状态
+ *============================================================================*/
+
+/**
+ * 创建备份
+ */
+int client_backup_create(ClientContext *ctx, const char *description) {
+    if (!ctx || !ctx->connected) {
+        printf("Not connected\n");
+        return -1;
+    }
+    
+    RequestHeader header;
+    protocol_init_request(&header, CMD_BACKUP_CREATE);
+    if (description) {
+        strncpy(header.filename, description, sizeof(header.filename) - 1);
+    }
+    
+    if (protocol_send_request(ctx->sockfd, &header, NULL) != ERR_SUCCESS) {
+        printf("Failed to send request\n");
+        return -1;
+    }
+    
+    ServerResponse response;
+    if (protocol_recv_response(ctx->sockfd, &response, NULL, 0) != ERR_SUCCESS) {
+        printf("Failed to receive response\n");
+        return -1;
+    }
+    
+    printf("%s\n", response.message);
+    return (response.status_code == STATUS_CREATED) ? 0 : -1;
+}
+
+/**
+ * 列出备份
+ */
+int client_backup_list(ClientContext *ctx) {
+    if (!ctx || !ctx->connected) {
+        printf("Not connected\n");
+        return -1;
+    }
+    
+    RequestHeader header;
+    protocol_init_request(&header, CMD_BACKUP_LIST);
+    
+    if (protocol_send_request(ctx->sockfd, &header, NULL) < 0) {
+        printf("Failed to send request\n");
+        return -1;
+    }
+    
+    ServerResponse response;
+    if (protocol_recv_response(ctx->sockfd, &response, NULL, 0) != ERR_SUCCESS) {
+        printf("Failed to receive response\n");
+        return -1;
+    }
+    
+    if (response.status_code == STATUS_OK && response.payload_size > 0) {
+        char *data = malloc(response.payload_size + 1);
+        if (data) {
+            if (protocol_recv_file_data(ctx->sockfd, data, response.payload_size) == 0) {
+                data[response.payload_size] = '\0';
+                printf("%s", data);
+            }
+            free(data);
+        }
+    } else {
+        printf("%s\n", response.message);
+    }
+    
+    return 0;
+}
+
+/**
+ * 恢复备份
+ */
+int client_backup_restore(ClientContext *ctx, uint32_t backup_id) {
+    if (!ctx || !ctx->connected) {
+        printf("Not connected\n");
+        return -1;
+    }
+    
+    RequestHeader header;
+    protocol_init_request(&header, CMD_BACKUP_RESTORE);
+    header.file_size = backup_id;  // 使用 file_size 传递 backup_id
+    
+    if (protocol_send_request(ctx->sockfd, &header, NULL) < 0) {
+        printf("Failed to send request\n");
+        return -1;
+    }
+    
+    ServerResponse response;
+    if (protocol_recv_response(ctx->sockfd, &response, NULL, 0) != ERR_SUCCESS) {
+        printf("Failed to receive response\n");
+        return -1;
+    }
+    
+    printf("%s\n", response.message);
+    return (response.status_code == STATUS_OK) ? 0 : -1;
+}
+
+/**
+ * 添加用户
+ */
+int client_user_add(ClientContext *ctx, const char *username, const char *password, int role) {
+    if (!ctx || !ctx->connected) {
+        printf("Not connected\n");
+        return -1;
+    }
+    
+    RequestHeader header;
+    protocol_init_request(&header, CMD_USER_ADD);
+    header.payload_size = sizeof(UserInfoPayload);
+    
+    UserInfoPayload payload;
+    memset(&payload, 0, sizeof(payload));
+    strncpy(payload.username, username, sizeof(payload.username) - 1);
+    strncpy(payload.password, password, sizeof(payload.password) - 1);
+    payload.role = role;
+    
+    if (protocol_send_request(ctx->sockfd, &header, &payload) < 0) {
+        printf("Failed to send request\n");
+        return -1;
+    }
+    
+    ServerResponse response;
+    if (protocol_recv_response(ctx->sockfd, &response, NULL, 0) != ERR_SUCCESS) {
+        printf("Failed to receive response\n");
+        return -1;
+    }
+    
+    printf("%s\n", response.message);
+    return (response.status_code == STATUS_CREATED) ? 0 : -1;
+}
+
+/**
+ * 删除用户
+ */
+int client_user_delete(ClientContext *ctx, const char *username) {
+    if (!ctx || !ctx->connected) {
+        printf("Not connected\n");
+        return -1;
+    }
+    
+    RequestHeader header;
+    protocol_init_request(&header, CMD_USER_DELETE);
+    strncpy(header.filename, username, sizeof(header.filename) - 1);
+    
+    if (protocol_send_request(ctx->sockfd, &header, NULL) < 0) {
+        printf("Failed to send request\n");
+        return -1;
+    }
+    
+    ServerResponse response;
+    if (protocol_recv_response(ctx->sockfd, &response, NULL, 0) != ERR_SUCCESS) {
+        printf("Failed to receive response\n");
+        return -1;
+    }
+    
+    printf("%s\n", response.message);
+    return (response.status_code == STATUS_OK) ? 0 : -1;
+}
+
+/**
+ * 列出用户
+ */
+int client_user_list(ClientContext *ctx) {
+    if (!ctx || !ctx->connected) {
+        printf("Not connected\n");
+        return -1;
+    }
+    
+    RequestHeader header;
+    protocol_init_request(&header, CMD_USER_LIST);
+    
+    if (protocol_send_request(ctx->sockfd, &header, NULL) < 0) {
+        printf("Failed to send request\n");
+        return -1;
+    }
+    
+    ServerResponse response;
+    if (protocol_recv_response(ctx->sockfd, &response, NULL, 0) != ERR_SUCCESS) {
+        printf("Failed to receive response\n");
+        return -1;
+    }
+    
+    if (response.status_code == STATUS_OK && response.payload_size > 0) {
+        char *data = malloc(response.payload_size + 1);
+        if (data) {
+            if (protocol_recv_file_data(ctx->sockfd, data, response.payload_size) == 0) {
+                data[response.payload_size] = '\0';
+                printf("%s", data);
+            }
+            free(data);
+        }
+    } else {
+        printf("%s\n", response.message);
+    }
+    
+    return 0;
+}
+
+/**
+ * 上传评审意见
+ */
+int client_upload_review(ClientContext *ctx, uint32_t paper_id, int score, 
+                         const char *decision, const char *comments) {
+    if (!ctx || !ctx->connected) {
+        printf("Not connected\n");
+        return -1;
+    }
+    
+    RequestHeader header;
+    protocol_init_request(&header, CMD_UPLOAD_REVIEW);
+    header.payload_size = sizeof(ReviewPayload);
+    
+    ReviewPayload payload;
+    memset(&payload, 0, sizeof(payload));
+    payload.paper_id = paper_id;
+    payload.score = score;
+    strncpy(payload.decision, decision, sizeof(payload.decision) - 1);
+    strncpy(payload.comments, comments, sizeof(payload.comments) - 1);
+    
+    if (protocol_send_request(ctx->sockfd, &header, &payload) < 0) {
+        printf("Failed to send request\n");
+        return -1;
+    }
+    
+    ServerResponse response;
+    if (protocol_recv_response(ctx->sockfd, &response, NULL, 0) != ERR_SUCCESS) {
+        printf("Failed to receive response\n");
+        return -1;
+    }
+    
+    printf("%s\n", response.message);
+    return (response.status_code == STATUS_CREATED) ? 0 : -1;
+}
+
+/**
+ * 查询评审意见
+ */
+int client_query_review(ClientContext *ctx, uint32_t paper_id) {
+    if (!ctx || !ctx->connected) {
+        printf("Not connected\n");
+        return -1;
+    }
+    
+    RequestHeader header;
+    protocol_init_request(&header, CMD_QUERY_REVIEW);
+    header.file_size = paper_id;  // 用 file_size 传递 paper_id
+    
+    if (protocol_send_request(ctx->sockfd, &header, NULL) < 0) {
+        printf("Failed to send request\n");
+        return -1;
+    }
+    
+    ServerResponse response;
+    if (protocol_recv_response(ctx->sockfd, &response, NULL, 0) != ERR_SUCCESS) {
+        printf("Failed to receive response\n");
+        return -1;
+    }
+    
+    if (response.status_code == STATUS_OK && response.payload_size > 0) {
+        char *data = malloc(response.payload_size + 1);
+        if (data) {
+            if (protocol_recv_file_data(ctx->sockfd, data, response.payload_size) == 0) {
+                data[response.payload_size] = '\0';
+                printf("%s", data);
+            }
+            free(data);
+        }
+    } else {
+        printf("%s\n", response.message);
+    }
+    
+    return 0;
+}
+
+/**
+ * 分配审稿人
+ */
+int client_assign_reviewer(ClientContext *ctx, uint32_t paper_id, const char *reviewer) {
+    if (!ctx || !ctx->connected) {
+        printf("Not connected\n");
+        return -1;
+    }
+    
+    RequestHeader header;
+    protocol_init_request(&header, CMD_ASSIGN_REVIEWER);
+    header.payload_size = sizeof(AssignReviewerPayload);
+    
+    AssignReviewerPayload payload;
+    memset(&payload, 0, sizeof(payload));
+    payload.paper_id = paper_id;
+    strncpy(payload.reviewer, reviewer, sizeof(payload.reviewer) - 1);
+    
+    if (protocol_send_request(ctx->sockfd, &header, &payload) < 0) {
+        printf("Failed to send request\n");
+        return -1;
+    }
+    
+    ServerResponse response;
+    if (protocol_recv_response(ctx->sockfd, &response, NULL, 0) != ERR_SUCCESS) {
+        printf("Failed to receive response\n");
+        return -1;
+    }
+    
+    printf("%s\n", response.message);
+    return (response.status_code == STATUS_OK) ? 0 : -1;
+}
+
+/**
+ * 做出决定
+ */
+int client_make_decision(ClientContext *ctx, uint32_t paper_id, const char *decision) {
+    if (!ctx || !ctx->connected) {
+        printf("Not connected\n");
+        return -1;
+    }
+    
+    RequestHeader header;
+    protocol_init_request(&header, CMD_MAKE_DECISION);
+    snprintf(header.filename, sizeof(header.filename), "%u:%s", paper_id, decision);
+    
+    if (protocol_send_request(ctx->sockfd, &header, NULL) < 0) {
+        printf("Failed to send request\n");
+        return -1;
+    }
+    
+    ServerResponse response;
+    if (protocol_recv_response(ctx->sockfd, &response, NULL, 0) != ERR_SUCCESS) {
+        printf("Failed to receive response\n");
+        return -1;
+    }
+    
+    printf("%s\n", response.message);
+    return (response.status_code == STATUS_OK) ? 0 : -1;
+}
+
+/**
+ * 查看系统状态
+ */
+int client_system_status(ClientContext *ctx) {
+    if (!ctx || !ctx->connected) {
+        printf("Not connected\n");
+        return -1;
+    }
+    
+    RequestHeader header;
+    protocol_init_request(&header, CMD_SYSTEM_STATUS);
+    
+    if (protocol_send_request(ctx->sockfd, &header, NULL) < 0) {
+        printf("Failed to send request\n");
+        return -1;
+    }
+    
+    ServerResponse response;
+    if (protocol_recv_response(ctx->sockfd, &response, NULL, 0) != ERR_SUCCESS) {
+        printf("Failed to receive response\n");
+        return -1;
+    }
+    
+    if (response.status_code == STATUS_OK && response.payload_size > 0) {
+        char *data = malloc(response.payload_size + 1);
+        if (data) {
+            if (protocol_recv_file_data(ctx->sockfd, data, response.payload_size) == 0) {
+                data[response.payload_size] = '\0';
+                printf("%s", data);
+            }
+            free(data);
+        }
+    } else {
+        printf("%s\n", response.message);
     }
     
     return 0;

@@ -108,6 +108,73 @@ typedef struct __attribute__((packed)) {
 } PaperStatusPayload;
 
 /*============================================================================
+ * 评审意见载荷 (新增)
+ *============================================================================*/
+
+typedef struct __attribute__((packed)) {
+    uint32_t paper_id;                  // 论文ID
+    char reviewer[64];                  // 评审者用户名
+    int32_t score;                      // 评分 (1-10)
+    char decision[32];                  // 决定: accept/reject/revision
+    char comments[2048];                // 评审意见
+    uint64_t review_time;               // 评审时间
+} ReviewPayload;
+
+/*============================================================================
+ * 审稿人分配载荷 (新增)
+ *============================================================================*/
+
+typedef struct __attribute__((packed)) {
+    uint32_t paper_id;                  // 论文ID
+    char reviewer[64];                  // 分配的审稿人
+    char editor[64];                    // 分配的编辑
+} AssignReviewerPayload;
+
+/*============================================================================
+ * 备份信息载荷 (新增)
+ *============================================================================*/
+
+typedef struct __attribute__((packed)) {
+    uint32_t backup_id;                 // 备份ID
+    char description[256];              // 备份描述
+    uint64_t created_at;                // 创建时间
+    uint32_t size;                      // 备份大小
+    char filename[MAX_FILENAME];        // 备份文件名
+} BackupInfoPayload;
+
+/*============================================================================
+ * 用户信息载荷 (新增)
+ *============================================================================*/
+
+typedef struct __attribute__((packed)) {
+    char username[64];                  // 用户名
+    char password[64];                  // 密码
+    UserRole role;                      // 角色
+    char email[128];                    // 邮箱
+    uint64_t created_at;                // 创建时间
+    bool active;                        // 是否激活
+} UserInfoPayload;
+
+/*============================================================================
+ * 系统状态载荷 (新增)
+ *============================================================================*/
+
+typedef struct __attribute__((packed)) {
+    uint32_t total_blocks;              // 总块数
+    uint32_t free_blocks;               // 空闲块数
+    uint32_t used_blocks;               // 已用块数
+    uint32_t total_inodes;              // 总inode数
+    uint32_t free_inodes;               // 空闲inode数
+    uint32_t active_clients;            // 活跃客户端数
+    uint32_t total_requests;            // 总请求数
+    uint64_t cache_hits;                // 缓存命中次数
+    uint64_t cache_misses;              // 缓存未命中次数
+    uint64_t uptime;                    // 运行时间(秒)
+    uint64_t total_bytes_in;            // 总入流量
+    uint64_t total_bytes_out;           // 总出流量
+} SystemStatusPayload;
+
+/*============================================================================
  * 协议工具函数
  *============================================================================*/
 
